@@ -12,6 +12,7 @@ const fmt = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency:
 export default function Dashboard({ transactions, currentMonth, currentYear, onMonthChange, selectedMonths, selectedYear, onMonthsChange, onYearChange }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [expandedCategories, setExpandedCategories] = useState({});
 
   const months = selectedMonths && selectedMonths.length > 0 ? selectedMonths : [currentMonth];
   const year = selectedYear || currentYear;
@@ -31,7 +32,6 @@ export default function Dashboard({ transactions, currentMonth, currentYear, onM
 
   // Category bar data
   const allCategories = [...new Set(filtered.filter(t => t.type === 'expense').map(t => t.category))];
-
   const categoryData = allCategories.map(cat => {
     const entry = { name: cat };
     months.forEach(m => {
@@ -48,7 +48,7 @@ export default function Dashboard({ transactions, currentMonth, currentYear, onM
     return bTotal - aTotal;
   });
 
-  // Weekly data (filtered by selected category)
+  // Weekly data
   const weeklyData = [1,2,3,4].map(week => {
     const entry = { name: `Week ${week}` };
     months.forEach(m => {
@@ -67,7 +67,7 @@ export default function Dashboard({ transactions, currentMonth, currentYear, onM
     return entry;
   });
 
-  // Daily data (filtered by selected category)
+  // Daily data
   const dailyMap = {};
   categoryFiltered.forEach(t => {
     const [y, m, d] = t.date.split('-').map(Number);
@@ -78,6 +78,27 @@ export default function Dashboard({ transactions, currentMonth, currentYear, onM
     else dailyMap[key].Expenses += t.amount;
   });
   const dailyData = Object.values(dailyMap).sort((a, b) => a._m !== b._m ? a._m - b._m : a._d - b._d);
+
+  // Expense detail table data
+  const expenseTransactions = filtered.filter(t => t.type === 'expense');
+  const categoryGroups = expenseTransactions.reduce((acc, t) => {
+    if (!acc[t.category]) acc[t.category] = { total: 0, transactions: [] };
+    acc[t.category].total += t.amount;
+    acc[t.category].transactions.push(t);
+    return acc;
+  }, {});
+  const sortedGroups = Object.entries(categoryGroups)
+    .sort((a, b) => b[1].total - a[1].total)
+    .map(([cat, data]) => ({
+      category: cat,
+      total: data.total,
+      transactions: data.transactions.sort((a, b) => new Date(b.date) - new Date(a.date))
+    }));
+  const grandTotal = sortedGroups.reduce((s, g) => s + g.total, 0);
+
+  const toggleCategory = (cat) => {
+    setExpandedCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
+  };
 
   const handleCategoryClick = (data) => {
     if (!data) return;
@@ -111,7 +132,6 @@ export default function Dashboard({ transactions, currentMonth, currentYear, onM
         <select value={year} onChange={e => onYearChange(Number(e.target.value))} style={{ padding: '0.5rem 0.75rem', border: '1px solid #e2e8f0', borderRadius: '8px', fontWeight: 600, color: '#1e293b', background: 'white' }}>
           {[2023,2024,2025,2026,2027].map(y => <option key={y} value={y}>{y}</option>)}
         </select>
-
         <div style={{ position: 'relative' }}>
           <button onClick={() => setDropdownOpen(o => !o)} style={{ padding: '0.5rem 1rem', border: '1px solid #e2e8f0', borderRadius: '8px', background: 'white', fontWeight: 500, color: '#1e293b', cursor: 'pointer' }}>
             {months.length === 1 ? MONTH_NAMES[months[0]] : `${months.length} months selected`} ▾
@@ -130,7 +150,6 @@ export default function Dashboard({ transactions, currentMonth, currentYear, onM
             </div>
           )}
         </div>
-
         {selectedCategory && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#eef2ff', padding: '0.4rem 0.75rem', borderRadius: '20px' }}>
             <span style={{ fontSize: '0.85rem', color: '#6366f1', fontWeight: 600 }}>Filter: {selectedCategory}</span>
@@ -219,6 +238,60 @@ export default function Dashboard({ transactions, currentMonth, currentYear, onM
           </ResponsiveContainer>
         )}
       </div>
+
+      {/* Expense detail table */}
+      {sortedGroups.length > 0 && (
+        <div style={{ background: 'white', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden', marginBottom: '1rem' }}>
+          <div style={{ padding: '1.25rem 1.25rem 0.75rem', borderBottom: '1px solid #f1f5f9' }}>
+            <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: '#1e293b' }}>Expense Detail by Category</h3>
+            <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem' }}>Click a category to expand</p>
+          </div>
+
+          {sortedGroups.map((group, gi) => (
+            <div key={group.category} style={{ borderBottom: gi < sortedGroups.length - 1 ? '1px solid #f8fafc' : 'none' }}>
+              {/* Category header row */}
+              <div
+                onClick={() => toggleCategory(group.category)}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.9rem 1.25rem', cursor: 'pointer', background: expandedCategories[group.category] ? '#fafafe' : 'white' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span style={{ fontSize: '0.85rem', color: expandedCategories[group.category] ? '#6366f1' : '#64748b', transition: 'transform 0.2s', display: 'inline-block', transform: expandedCategories[group.category] ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: COLORS[gi % COLORS.length] }} />
+                  <span style={{ fontWeight: 600, color: '#1e293b', fontSize: '0.95rem' }}>{group.category}</span>
+                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{group.transactions.length} transaction{group.transactions.length !== 1 ? 's' : ''}</span>
+                </div>
+                <span style={{ fontWeight: 700, color: '#ef4444', fontSize: '0.95rem' }}>{fmt(group.total)}</span>
+              </div>
+
+              {/* Transactions inside category */}
+              {expandedCategories[group.category] && (
+                <div style={{ background: '#fafafe' }}>
+                  {group.transactions.map((t, ti) => (
+                    <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 1.25rem 0.6rem 3rem', borderTop: '1px solid #f1f5f9' }}>
+                      <div style={{ flex: 1 }}>
+                        <span style={{ fontSize: '0.88rem', color: '#1e293b', fontWeight: 500 }}>{t.note ? t.note.replace('Fixed: ', '') : t.category}</span>
+                        <span style={{ fontSize: '0.78rem', color: '#94a3b8', marginLeft: '0.5rem' }}>{t.date}</span>
+                      </div>
+                      <span style={{ fontWeight: 600, color: '#ef4444', fontSize: '0.88rem' }}>{fmt(t.amount)}</span>
+                    </div>
+                  ))}
+                  {/* Category subtotal */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0.5rem 1.25rem', borderTop: '1px solid #e2e8f0', background: '#f1f5f9' }}>
+                    <span style={{ fontSize: '0.8rem', color: '#64748b', marginRight: '1rem' }}>Subtotal</span>
+                    <span style={{ fontWeight: 700, color: '#ef4444', fontSize: '0.88rem' }}>{fmt(group.total)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* Grand total */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.25rem', background: '#fef2f2', borderTop: '2px solid #fecaca' }}>
+            <span style={{ fontWeight: 700, color: '#1e293b', fontSize: '0.95rem' }}>Total Expenses</span>
+            <span style={{ fontWeight: 700, color: '#ef4444', fontSize: '1.1rem' }}>{fmt(grandTotal)}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
