@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { db } from '../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import bcrypt from 'bcryptjs';
+import CryptoJS from 'crypto-js';
 
 const ADMIN_CEDULA = '1088284299';
+const hashPin = (pin) => CryptoJS.SHA256(pin).toString();
 
 export default function PinScreen({ onUnlock }) {
   const [screen, setScreen] = useState('cedula');
@@ -42,7 +43,7 @@ export default function PinScreen({ onUnlock }) {
     setLoading(true);
     const snap = await getDoc(doc(db, 'users', cedula.trim()));
     const stored = snap.data().pin;
-    const match = await bcrypt.compare(pin, stored);
+    const match = hashPin(pin) === stored;
     setLoading(false);
     if (match) {
       onUnlock(cedula.trim(), cedula.trim() === ADMIN_CEDULA);
@@ -66,7 +67,7 @@ export default function PinScreen({ onUnlock }) {
         setStep('enter');
       } else {
         setLoading(true);
-        const hashed = await bcrypt.hash(pin, 10);
+        const hashed = hashPin(pin);
         await setDoc(doc(db, 'users', cedula.trim()), {
           cedula: cedula.trim(),
           pin: hashed,
