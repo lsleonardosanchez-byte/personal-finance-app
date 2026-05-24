@@ -19,9 +19,8 @@ export default function App() {
   const [view, setView] = useState('dashboard');
   const [transactions, setTransactions] = useState([]);
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
-  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
-  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
-  const [loading, setLoading] = useState(true);
+  const [selectedMonths, setSelectedMonths] = useState([new Date().getMonth()]);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   useEffect(() => {
     if (unlocked && currentUser) {
@@ -31,12 +30,10 @@ export default function App() {
   }, [unlocked, currentUser]);
 
   const fetchTransactions = async () => {
-    setLoading(true);
     const q = query(collection(db, 'transactions'), where('userId', '==', currentUser));
     const snapshot = await getDocs(q);
     const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
     setTransactions(data);
-    setLoading(false);
   };
 
   const fetchCategories = async () => {
@@ -76,11 +73,6 @@ export default function App() {
     setTransactions([]);
   };
 
-  const filteredTransactions = transactions.filter(t => {
-    const [year, month] = t.date.split('-').map(Number);
-    return month - 1 === currentMonth && year === currentYear;
-  });
-
   if (!unlocked) return <PinScreen onUnlock={handleUnlock} />;
 
   return (
@@ -118,10 +110,14 @@ export default function App() {
       <main style={{ maxWidth: '900px', margin: '0 auto', padding: '1.5rem' }}>
         {view === 'dashboard' && (
           <Dashboard
-            transactions={filteredTransactions}
-            currentMonth={currentMonth}
-            currentYear={currentYear}
-            onMonthChange={(m, y) => { setCurrentMonth(m); setCurrentYear(y); }}
+            transactions={transactions}
+            currentMonth={selectedMonths[0]}
+            currentYear={selectedYear}
+            selectedMonths={selectedMonths}
+            selectedYear={selectedYear}
+            onMonthsChange={setSelectedMonths}
+            onYearChange={setSelectedYear}
+            onMonthChange={(m, y) => { setSelectedMonths([m]); setSelectedYear(y); }}
           />
         )}
         {view === 'add' && (
@@ -132,12 +128,13 @@ export default function App() {
         )}
         {view === 'transactions' && (
           <TransactionList
-            transactions={filteredTransactions}
+            transactions={transactions}
             allTransactions={transactions}
             onDelete={deleteTransaction}
-            currentMonth={currentMonth}
-            currentYear={currentYear}
-            onMonthChange={(m, y) => { setCurrentMonth(m); setCurrentYear(y); }}
+            selectedMonths={selectedMonths}
+            selectedYear={selectedYear}
+            onMonthsChange={setSelectedMonths}
+            onYearChange={setSelectedYear}
           />
         )}
         {view === 'categories' && (
@@ -201,35 +198,17 @@ function CategoriesEditor({ categories, onSave }) {
         <label style={{ display: 'block', fontWeight: 600, color: '#22c55e', marginBottom: '0.5rem' }}>Income Categories</label>
         <div>{incomeList.map(c => <span key={c} style={tagStyle('green')}>{c}</span>)}</div>
         <div style={inputRow}>
-          <input
-            value={newIncome}
-            onChange={e => setNewIncome(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && addIncome()}
-            placeholder="New income category..."
-            style={inputStyle}
-          />
+          <input value={newIncome} onChange={e => setNewIncome(e.target.value)} onKeyDown={e => e.key === 'Enter' && addIncome()} placeholder="New income category..." style={inputStyle} />
           <button onClick={addIncome} style={addBtnStyle('green')}>+ Add</button>
         </div>
-
         <hr style={{ border: 'none', borderTop: '1px solid #f1f5f9', margin: '0.5rem 0 1rem' }} />
-
         <label style={{ display: 'block', fontWeight: 600, color: '#ef4444', marginBottom: '0.5rem' }}>Expense Categories</label>
         <div>{expenseList.map(c => <span key={c} style={tagStyle('red')}>{c}</span>)}</div>
         <div style={inputRow}>
-          <input
-            value={newExpense}
-            onChange={e => setNewExpense(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && addExpense()}
-            placeholder="New expense category..."
-            style={inputStyle}
-          />
+          <input value={newExpense} onChange={e => setNewExpense(e.target.value)} onKeyDown={e => e.key === 'Enter' && addExpense()} placeholder="New expense category..." style={inputStyle} />
           <button onClick={addExpense} style={addBtnStyle('red')}>+ Add</button>
         </div>
-
-        <button onClick={handleSave} style={{
-          width: '100%', padding: '0.75rem', background: '#6366f1',
-          color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, marginTop: '0.5rem'
-        }}>
+        <button onClick={handleSave} style={{ width: '100%', padding: '0.75rem', background: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, marginTop: '0.5rem' }}>
           {saved ? 'Saved!' : 'Save Categories'}
         </button>
       </div>
