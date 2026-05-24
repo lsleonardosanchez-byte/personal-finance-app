@@ -19,6 +19,7 @@ export default function FixedExpenses({ userId, categories, onTransactionChange 
   const [loading, setLoading] = useState(true);
   const [pendingPay, setPendingPay] = useState(null);
   const [payDate, setPayDate] = useState(today());
+  const [payAmount, setPayAmount] = useState('');
 
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
@@ -36,7 +37,7 @@ export default function FixedExpenses({ userId, categories, onTransactionChange 
     const pq = query(collection(db, 'fixedPayments'), where('userId', '==', userId), where('monthKey', '==', monthKey));
     const psnap = await getDocs(pq);
     const pmap = {};
-    psnap.docs.forEach(d => { pmap[d.data().fixedId] = { paymentDocId: d.id, transactionId: d.data().transactionId }; });
+    psnap.docs.forEach(d => { pmap[d.data().fixedId] = { paymentDocId: d.id, transactionId: d.data().transactionId, date: d.data().date, amount: d.data().amount }; });
     setPayments(pmap);
     setLoading(false);
   };
@@ -61,12 +62,14 @@ export default function FixedExpenses({ userId, categories, onTransactionChange 
   };
 
   const confirmPaid = async (fixed) => {
-    const txData = { userId, type: 'expense', amount: fixed.amount, category: fixed.category, date: payDate, note: `Fixed: ${fixed.name}` };
+    const finalAmount = payAmount && !isNaN(payAmount) && Number(payAmount) > 0 ? Number(payAmount) : fixed.amount;
+    const txData = { userId, type: 'expense', amount: finalAmount, category: fixed.category, date: payDate, note: `Fixed: ${fixed.name}` };
     const txRef = await addDoc(collection(db, 'transactions'), txData);
-    const pRef = await addDoc(collection(db, 'fixedPayments'), { userId, fixedId: fixed.id, monthKey, transactionId: txRef.id, date: payDate });
-    setPayments(prev => ({ ...prev, [fixed.id]: { paymentDocId: pRef.id, transactionId: txRef.id } }));
+    const pRef = await addDoc(collection(db, 'fixedPayments'), { userId, fixedId: fixed.id, monthKey, transactionId: txRef.id, date: payDate, amount: finalAmount });
+    setPayments(prev => ({ ...prev, [fixed.id]: { paymentDocId: pRef.id, transactionId: txRef.id, date: payDate, amount: finalAmount } }));
     setPendingPay(null);
     setPayDate(today());
+    setPayAmount('');
     onTransactionChange();
   };
 
@@ -87,12 +90,13 @@ export default function FixedExpenses({ userId, categories, onTransactionChange 
     } else {
       setPendingPay(fixed.id);
       setPayDate(today());
+      setPayAmount(String(fixed.amount));
     }
   };
 
   const totalFixed = fixedList.reduce((s, f) => s + f.amount, 0);
-  const totalPaid = fixedList.filter(f => payments[f.id]).reduce((s, f) => s + f.amount, 0);
-  const totalPending = totalFixed - totalPaid;
+  const totalPaid = fixedList.filter(f => payments[f.id]).reduce((s, f) => s + (payments[f.id].amount || f.amount), 0);
+  const totalPending = totalFixed - fixedList.filter(f => payments[f.id]).reduce((s, f) => s + f.amount, 0);
 
   const inputStyle = { padding: '0.6rem', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '0.9rem' };
 
@@ -130,6 +134,7 @@ export default function FixedExpenses({ userId, categories, onTransactionChange 
           {fixedList.map(f => {
             const isPaid = !!payments[f.id];
             const isPickingDate = pendingPay === f.id;
+            const paidAmount = payments[f.id]?.amount;
             return (
               <div key={f.id} style={{
                 background: 'white', borderRadius: '10px',
@@ -144,66 +149,4 @@ export default function FixedExpenses({ userId, categories, onTransactionChange 
                       type="checkbox"
                       checked={isPaid}
                       onChange={() => handleCheckbox(f)}
-                      style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#22c55e' }}
-                    />
-                    <div>
-                      <p style={{ fontWeight: 600, color: isPaid ? '#94a3b8' : '#1e293b', textDecoration: isPaid ? 'line-through' : 'none' }}>{f.name}</p>
-                      <p style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{f.category}</p>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <span style={{ fontWeight: 700, color: isPaid ? '#22c55e' : '#ef4444' }}>{fmt(f.amount)}</span>
-                    {isPaid && (
-                      <span style={{ fontSize: '0.75rem', background: '#f0fdf4', color: '#22c55e', padding: '0.2rem 0.5rem', borderRadius: '20px', fontWeight: 600 }}>
-                        Paid {payments[f.id]?.date ? `· ${payments[f.id].date}` : ''}
-                      </span>
-                    )}
-                    <button onClick={() => deleteFixed(f.id)} style={{ background: 'none', border: 'none', color: '#cbd5e1', fontSize: '1.1rem', cursor: 'pointer' }}>🗑️</button>
-                  </div>
-                </div>
-
-                {/* Date picker - slides in when checkbox clicked */}
-                {isPickingDate && (
-                  <div style={{ padding: '0.75rem 1.25rem 1rem', borderTop: '1px solid #f1f5f9', background: '#f8fafc' }}>
-                    <p style={{ fontSize: '0.85rem', color: '#6366f1', fontWeight: 500, marginBottom: '0.5rem' }}>Select payment date:</p>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                      <input
-                        type="date"
-                        value={payDate}
-                        onChange={e => setPayDate(e.target.value)}
-                        style={{ ...inputStyle, flex: 1 }}
-                      />
-                      <button onClick={() => confirmPaid(f)} style={{ padding: '0.6rem 1rem', background: '#22c55e', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer' }}>
-                        Confirm
-                      </button>
-                      <button onClick={() => setPendingPay(null)} style={{ padding: '0.6rem 1rem', background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer' }}>
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Add new fixed expense */}
-      <div style={{ background: 'white', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
-        <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#1e293b', marginBottom: '1rem' }}>Add Fixed Expense</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
-          <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Name (e.g. Rent)" style={{ ...inputStyle, gridColumn: '1 / -1' }} />
-          <input value={newAmount} onChange={e => setNewAmount(e.target.value)} placeholder="Amount" type="number" style={inputStyle} />
-          <select value={newCategory} onChange={e => setNewCategory(e.target.value)} style={inputStyle}>
-            <option value="">Category...</option>
-            {(categories.expense || []).map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </div>
-        {error && <p style={{ color: '#ef4444', fontSize: '0.85rem', marginBottom: '0.75rem' }}>{error}</p>}
-        <button onClick={addFixed} style={{ width: '100%', padding: '0.75rem', background: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600 }}>
-          + Add Fixed Expense
-        </button>
-      </div>
-    </div>
-  );
-}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer', accentColo
