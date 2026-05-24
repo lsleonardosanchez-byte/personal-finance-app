@@ -22,17 +22,20 @@ export default function PinScreen({ onUnlock }) {
     setLoading(false);
     if (!snap.exists()) {
       setStep('enter');
+      setPin('');
       setScreen('setup');
     } else if (snap.data().pinReset) {
       setStep('enter');
+      setPin('');
       setScreen('setup');
     } else {
+      setPin('');
       setScreen('login');
     }
   };
 
-  const handleNumber = (n) => { if (pin.length < 4) setPin(prev => prev + n); };
-  const handleDelete = () => setPin(prev => prev.slice(0, -1));
+  const addDigit = (n) => { if (pin.length < 4) setPin(prev => prev + n); };
+  const delDigit = () => setPin(prev => prev.slice(0, -1));
 
   const handleLogin = async () => {
     setLoading(true);
@@ -70,6 +73,16 @@ export default function PinScreen({ onUnlock }) {
     }
   };
 
+  const Card = ({ children }) => (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#f8fafc' }}>
+      <div style={{ background: 'white', borderRadius: '20px', padding: '2.5rem 2rem', boxShadow: '0 4px 24px rgba(0,0,0,0.08)', width: '320px', textAlign: 'center' }}>
+        <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>💰</div>
+        <h1 style={{ fontSize: '1.3rem', fontWeight: 700, color: '#1e293b', marginBottom: '1.5rem' }}>My Finances</h1>
+        {children}
+      </div>
+    </div>
+  );
+
   const Dots = () => (
     <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '2rem' }}>
       {[0,1,2,3].map(i => (
@@ -84,38 +97,30 @@ export default function PinScreen({ onUnlock }) {
       {error && <p style={{ color: '#ef4444', fontSize: '0.85rem', marginBottom: '1rem' }}>{error}</p>}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '10px' }}>
         {[1,2,3,4,5,6,7,8,9].map(n => (
-          <button key={n} onClick={() => handleNumber(String(n))} style={{ padding: '1rem', fontSize: '1.2rem', fontWeight: 500, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', color: '#1e293b' }}>{n}</button>
+          <button key={n} onClick={() => addDigit(String(n))} style={{ padding: '1rem', fontSize: '1.2rem', fontWeight: 500, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', color: '#1e293b' }}>{n}</button>
         ))}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-        <button onClick={handleDelete} style={{ padding: '1rem', fontSize: '1rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', color: '#64748b' }}>⌫</button>
-        <button onClick={() => handleNumber('0')} style={{ padding: '1rem', fontSize: '1.2rem', fontWeight: 500, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', color: '#1e293b' }}>0</button>
+        <button onClick={delDigit} style={{ padding: '1rem', fontSize: '1rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', color: '#64748b' }}>⌫</button>
+        <button onClick={() => addDigit('0')} style={{ padding: '1rem', fontSize: '1.2rem', fontWeight: 500, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', color: '#1e293b' }}>0</button>
         <button onClick={onSubmit} disabled={pin.length < 4} style={{ padding: '1rem', fontSize: '1rem', background: pin.length === 4 ? '#6366f1' : '#e2e8f0', border: 'none', borderRadius: '10px', color: 'white', fontWeight: 600 }}>{submitLabel}</button>
       </div>
     </>
-  );
-
-  const Card = ({ children }) => (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#f8fafc' }}>
-      <div style={{ background: 'white', borderRadius: '20px', padding: '2.5rem 2rem', boxShadow: '0 4px 24px rgba(0,0,0,0.08)', width: '320px', textAlign: 'center' }}>
-        <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>💰</div>
-        <h1 style={{ fontSize: '1.3rem', fontWeight: 700, color: '#1e293b', marginBottom: '1.5rem' }}>My Finances</h1>
-        {children}
-      </div>
-    </div>
   );
 
   if (screen === 'cedula') return (
     <Card>
       <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '1rem' }}>Enter your cédula to continue</p>
       <input
-  value={cedula}
-  onChange={e => setCedula(e.target.value)}
-  onKeyDown={e => e.key === 'Enter' && handleCedulaSubmit()}
-  placeholder="e.g. 123456789"
-  type="text"
-  style={{ width: '100%', padding: '0.7rem', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '1rem', marginBottom: '1rem', textAlign: 'center' }}
-/>
+        value={cedula}
+        onChange={e => setCedula(e.target.value)}
+        onKeyDown={e => e.key === 'Enter' && handleCedulaSubmit()}
+        placeholder="e.g. 123456789"
+        type="text"
+        inputMode="numeric"
+        autoFocus
+        style={{ width: '100%', padding: '0.7rem', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '1rem', marginBottom: '1rem', textAlign: 'center', letterSpacing: '0.1em' }}
+      />
       {error && <p style={{ color: '#ef4444', fontSize: '0.85rem', marginBottom: '1rem' }}>{error}</p>}
       <button onClick={handleCedulaSubmit} disabled={loading} style={{ width: '100%', padding: '0.75rem', background: '#6366f1', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 600 }}>
         {loading ? 'Checking...' : 'Continue'}
