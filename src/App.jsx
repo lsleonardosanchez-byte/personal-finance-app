@@ -90,7 +90,7 @@ export default function App() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         boxShadow: '0 2px 8px rgba(99,102,241,0.3)'
       }}>
-        <span style={{ fontWeight: 700, fontSize: '1.2rem' }}>💰 My Finances</span>
+        <span style={{ fontWeight: 700, fontSize: '1.2rem' }}>My Finances</span>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           {['dashboard', 'add', 'transactions', 'categories'].map(v => (
             <button key={v} onClick={() => setView(v)} style={{
@@ -106,7 +106,7 @@ export default function App() {
               background: view === 'admin' ? 'rgba(255,255,255,0.25)' : 'transparent',
               border: '1px solid rgba(255,255,255,0.4)', color: 'white', padding: '0.4rem 0.8rem',
               borderRadius: '6px', fontWeight: 500, fontSize: '0.85rem'
-            }}>👑 Admin</button>
+            }}>Admin</button>
           )}
           <button onClick={handleLogout} style={{
             background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.7)',
@@ -182,7 +182,7 @@ function CategoriesEditor({ categories, onSave }) {
           width: '100%', padding: '0.75rem', background: '#6366f1',
           color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600
         }}>
-          {saved ? '✅ Saved!' : 'Save Categories'}
+          {saved ? 'Saved!' : 'Save Categories'}
         </button>
       </div>
     </div>
