@@ -109,13 +109,13 @@ export default function PinScreen({ onUnlock }) {
     <Card>
       <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '1rem' }}>Enter your cédula to continue</p>
       <input
-        value={cedula}
-        onChange={e => setCedula(e.target.value)}
-        onKeyDown={e => e.key === 'Enter' && handleCedulaSubmit()}
-        placeholder="e.g. 123456"
-        type="text"
-        style={{ width: '100%', padding: '0.7rem', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '1rem', marginBottom: '1rem', textAlign: 'center' }}
-      />
+  value={cedula}
+  onChange={e => setCedula(e.target.value)}
+  onKeyDown={e => e.key === 'Enter' && handleCedulaSubmit()}
+  placeholder="e.g. 123456789"
+  type="text"
+  style={{ width: '100%', padding: '0.7rem', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '1rem', marginBottom: '1rem', textAlign: 'center' }}
+/>
       {error && <p style={{ color: '#ef4444', fontSize: '0.85rem', marginBottom: '1rem' }}>{error}</p>}
       <button onClick={handleCedulaSubmit} disabled={loading} style={{ width: '100%', padding: '0.75rem', background: '#6366f1', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 600 }}>
         {loading ? 'Checking...' : 'Continue'}
