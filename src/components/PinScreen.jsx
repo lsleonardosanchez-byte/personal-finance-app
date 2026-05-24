@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { db } from '../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import bcrypt from 'bcryptjs';
 
 const ADMIN_CEDULA = '1088284299';
 
@@ -40,8 +41,10 @@ export default function PinScreen({ onUnlock }) {
   const handleLogin = async () => {
     setLoading(true);
     const snap = await getDoc(doc(db, 'users', cedula.trim()));
+    const stored = snap.data().pin;
+    const match = await bcrypt.compare(pin, stored);
     setLoading(false);
-    if (snap.data().pin === pin) {
+    if (match) {
       onUnlock(cedula.trim(), cedula.trim() === ADMIN_CEDULA);
     } else {
       setError('Wrong PIN. Try again.');
@@ -62,12 +65,15 @@ export default function PinScreen({ onUnlock }) {
         setPin('');
         setStep('enter');
       } else {
+        setLoading(true);
+        const hashed = await bcrypt.hash(pin, 10);
         await setDoc(doc(db, 'users', cedula.trim()), {
           cedula: cedula.trim(),
-          pin,
+          pin: hashed,
           pinReset: false,
           isAdmin: cedula.trim() === ADMIN_CEDULA
         });
+        setLoading(false);
         onUnlock(cedula.trim(), cedula.trim() === ADMIN_CEDULA);
       }
     }
@@ -95,6 +101,7 @@ export default function PinScreen({ onUnlock }) {
     <>
       <Dots />
       {error && <p style={{ color: '#ef4444', fontSize: '0.85rem', marginBottom: '1rem' }}>{error}</p>}
+      {loading && <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '1rem' }}>Verifying...</p>}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '10px' }}>
         {[1,2,3,4,5,6,7,8,9].map(n => (
           <button key={n} onClick={() => addDigit(String(n))} style={{ padding: '1rem', fontSize: '1.2rem', fontWeight: 500, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', color: '#1e293b' }}>{n}</button>
@@ -103,7 +110,7 @@ export default function PinScreen({ onUnlock }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
         <button onClick={delDigit} style={{ padding: '1rem', fontSize: '1rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', color: '#64748b' }}>⌫</button>
         <button onClick={() => addDigit('0')} style={{ padding: '1rem', fontSize: '1.2rem', fontWeight: 500, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', color: '#1e293b' }}>0</button>
-        <button onClick={onSubmit} disabled={pin.length < 4} style={{ padding: '1rem', fontSize: '1rem', background: pin.length === 4 ? '#6366f1' : '#e2e8f0', border: 'none', borderRadius: '10px', color: 'white', fontWeight: 600 }}>{submitLabel}</button>
+        <button onClick={onSubmit} disabled={pin.length < 4 || loading} style={{ padding: '1rem', fontSize: '1rem', background: pin.length === 4 ? '#6366f1' : '#e2e8f0', border: 'none', borderRadius: '10px', color: 'white', fontWeight: 600 }}>{submitLabel}</button>
       </div>
     </>
   );
