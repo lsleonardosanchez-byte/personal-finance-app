@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, getDocs, addDoc, deleteDoc, doc, setDoc, query, where } from 'firebase/firestore';
+import { collection, getDocs, addDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 
 const fmt = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
+
+const today = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 export default function FixedExpenses({ userId, categories, onTransactionChange }) {
   const [fixedList, setFixedList] = useState([]);
@@ -12,6 +17,8 @@ export default function FixedExpenses({ userId, categories, onTransactionChange 
   const [newCategory, setNewCategory] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [pendingPay, setPendingPay] = useState(null);
+  const [payDate, setPayDate] = useState(today());
 
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
@@ -21,13 +28,11 @@ export default function FixedExpenses({ userId, categories, onTransactionChange 
 
   const fetchData = async () => {
     setLoading(true);
-    // Fetch fixed expenses list
     const q = query(collection(db, 'fixedExpenses'), where('userId', '==', userId));
     const snap = await getDocs(q);
     const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     setFixedList(list);
 
-    // Fetch payments for current month
     const pq = query(collection(db, 'fixedPayments'), where('userId', '==', userId), where('monthKey', '==', monthKey));
     const psnap = await getDocs(pq);
     const pmap = {};
@@ -50,30 +55,25 @@ export default function FixedExpenses({ userId, categories, onTransactionChange 
   };
 
   const deleteFixed = async (id) => {
-    // If paid this month, remove payment and transaction first
     if (payments[id]) await unmarkPaid(id, true);
     await deleteDoc(doc(db, 'fixedExpenses', id));
     setFixedList(prev => prev.filter(f => f.id !== id));
   };
 
-  const markPaid = async (fixed) => {
-    const today = new Date();
-    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    // Add transaction
-    const txData = { userId, type: 'expense', amount: fixed.amount, category: fixed.category, date: dateStr, note: `Fixed: ${fixed.name}` };
+  const confirmPaid = async (fixed) => {
+    const txData = { userId, type: 'expense', amount: fixed.amount, category: fixed.category, date: payDate, note: `Fixed: ${fixed.name}` };
     const txRef = await addDoc(collection(db, 'transactions'), txData);
-    // Record payment
-    const pRef = await addDoc(collection(db, 'fixedPayments'), { userId, fixedId: fixed.id, monthKey, transactionId: txRef.id });
+    const pRef = await addDoc(collection(db, 'fixedPayments'), { userId, fixedId: fixed.id, monthKey, transactionId: txRef.id, date: payDate });
     setPayments(prev => ({ ...prev, [fixed.id]: { paymentDocId: pRef.id, transactionId: txRef.id } }));
+    setPendingPay(null);
+    setPayDate(today());
     onTransactionChange();
   };
 
   const unmarkPaid = async (fixedId, skipStateUpdate = false) => {
     const payment = payments[fixedId];
     if (!payment) return;
-    // Remove transaction
     await deleteDoc(doc(db, 'transactions', payment.transactionId));
-    // Remove payment record
     await deleteDoc(doc(db, 'fixedPayments', payment.paymentDocId));
     if (!skipStateUpdate) {
       setPayments(prev => { const n = { ...prev }; delete n[fixedId]; return n; });
@@ -81,11 +81,12 @@ export default function FixedExpenses({ userId, categories, onTransactionChange 
     }
   };
 
-  const togglePaid = async (fixed) => {
+  const handleCheckbox = (fixed) => {
     if (payments[fixed.id]) {
-      await unmarkPaid(fixed.id);
+      unmarkPaid(fixed.id);
     } else {
-      await markPaid(fixed);
+      setPendingPay(fixed.id);
+      setPayDate(today());
     }
   };
 
@@ -128,31 +129,59 @@ export default function FixedExpenses({ userId, categories, onTransactionChange 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem' }}>
           {fixedList.map(f => {
             const isPaid = !!payments[f.id];
+            const isPickingDate = pendingPay === f.id;
             return (
               <div key={f.id} style={{
-                background: 'white', borderRadius: '10px', padding: '1rem 1.25rem',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                background: 'white', borderRadius: '10px',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-                borderLeft: `4px solid ${isPaid ? '#22c55e' : '#e2e8f0'}`,
-                opacity: isPaid ? 0.85 : 1
+                borderLeft: `4px solid ${isPaid ? '#22c55e' : isPickingDate ? '#6366f1' : '#e2e8f0'}`,
+                overflow: 'hidden'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
-                  <input
-                    type="checkbox"
-                    checked={isPaid}
-                    onChange={() => togglePaid(f)}
-                    style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#22c55e' }}
-                  />
-                  <div>
-                    <p style={{ fontWeight: 600, color: isPaid ? '#94a3b8' : '#1e293b', textDecoration: isPaid ? 'line-through' : 'none' }}>{f.name}</p>
-                    <p style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{f.category}</p>
+                {/* Main row */}
+                <div style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
+                    <input
+                      type="checkbox"
+                      checked={isPaid}
+                      onChange={() => handleCheckbox(f)}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#22c55e' }}
+                    />
+                    <div>
+                      <p style={{ fontWeight: 600, color: isPaid ? '#94a3b8' : '#1e293b', textDecoration: isPaid ? 'line-through' : 'none' }}>{f.name}</p>
+                      <p style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{f.category}</p>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <span style={{ fontWeight: 700, color: isPaid ? '#22c55e' : '#ef4444' }}>{fmt(f.amount)}</span>
+                    {isPaid && (
+                      <span style={{ fontSize: '0.75rem', background: '#f0fdf4', color: '#22c55e', padding: '0.2rem 0.5rem', borderRadius: '20px', fontWeight: 600 }}>
+                        Paid {payments[f.id]?.date ? `· ${payments[f.id].date}` : ''}
+                      </span>
+                    )}
+                    <button onClick={() => deleteFixed(f.id)} style={{ background: 'none', border: 'none', color: '#cbd5e1', fontSize: '1.1rem', cursor: 'pointer' }}>🗑️</button>
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <span style={{ fontWeight: 700, color: isPaid ? '#22c55e' : '#ef4444' }}>{fmt(f.amount)}</span>
-                  {isPaid && <span style={{ fontSize: '0.75rem', background: '#f0fdf4', color: '#22c55e', padding: '0.2rem 0.5rem', borderRadius: '20px', fontWeight: 600 }}>Paid</span>}
-                  <button onClick={() => deleteFixed(f.id)} style={{ background: 'none', border: 'none', color: '#cbd5e1', fontSize: '1.1rem', cursor: 'pointer' }}>🗑️</button>
-                </div>
+
+                {/* Date picker - slides in when checkbox clicked */}
+                {isPickingDate && (
+                  <div style={{ padding: '0.75rem 1.25rem 1rem', borderTop: '1px solid #f1f5f9', background: '#f8fafc' }}>
+                    <p style={{ fontSize: '0.85rem', color: '#6366f1', fontWeight: 500, marginBottom: '0.5rem' }}>Select payment date:</p>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <input
+                        type="date"
+                        value={payDate}
+                        onChange={e => setPayDate(e.target.value)}
+                        style={{ ...inputStyle, flex: 1 }}
+                      />
+                      <button onClick={() => confirmPaid(f)} style={{ padding: '0.6rem 1rem', background: '#22c55e', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer' }}>
+                        Confirm
+                      </button>
+                      <button onClick={() => setPendingPay(null)} style={{ padding: '0.6rem 1rem', background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer' }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
