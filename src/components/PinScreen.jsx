@@ -112,8 +112,8 @@ export default function PinScreen({ onUnlock }) {
         value={cedula}
         onChange={e => setCedula(e.target.value)}
         onKeyDown={e => e.key === 'Enter' && handleCedulaSubmit()}
-        placeholder="e.g. 1088284299"
-        type="number"
+        placeholder="e.g. 123456"
+        type="text"
         style={{ width: '100%', padding: '0.7rem', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '1rem', marginBottom: '1rem', textAlign: 'center' }}
       />
       {error && <p style={{ color: '#ef4444', fontSize: '0.85rem', marginBottom: '1rem' }}>{error}</p>}
