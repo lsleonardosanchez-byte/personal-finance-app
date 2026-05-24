@@ -149,4 +149,77 @@ export default function FixedExpenses({ userId, categories, onTransactionChange 
                       type="checkbox"
                       checked={isPaid}
                       onChange={() => handleCheckbox(f)}
-                      style={{ width: '18px', height: '18px', cursor: 'pointer', accentColo
+                      style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#22c55e' }}
+                    />
+                    <div>
+                      <p style={{ fontWeight: 600, color: isPaid ? '#94a3b8' : '#1e293b', textDecoration: isPaid ? 'line-through' : 'none' }}>{f.name}</p>
+                      <p style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{f.category}</p>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ textAlign: 'right' }}>
+                      <p style={{ fontWeight: 700, color: isPaid ? '#22c55e' : '#ef4444' }}>
+                        {isPaid && paidAmount !== f.amount ? fmt(paidAmount) : fmt(f.amount)}
+                      </p>
+                      {isPaid && paidAmount !== f.amount && (
+                        <p style={{ fontSize: '0.75rem', color: '#94a3b8', textDecoration: 'line-through' }}>{fmt(f.amount)}</p>
+                      )}
+                    </div>
+                    {isPaid && (
+                      <span style={{ fontSize: '0.75rem', background: '#f0fdf4', color: '#22c55e', padding: '0.2rem 0.5rem', borderRadius: '20px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                        Paid {payments[f.id]?.date ? `· ${payments[f.id].date}` : ''}
+                      </span>
+                    )}
+                    <button onClick={() => deleteFixed(f.id)} style={{ background: 'none', border: 'none', color: '#cbd5e1', fontSize: '1.1rem', cursor: 'pointer' }}>🗑️</button>
+                  </div>
+                </div>
+
+                {/* Date + amount picker */}
+                {isPickingDate && (
+                  <div style={{ padding: '0.75rem 1.25rem 1rem', borderTop: '1px solid #f1f5f9', background: '#f8fafc' }}>
+                    <p style={{ fontSize: '0.85rem', color: '#6366f1', fontWeight: 500, marginBottom: '0.75rem' }}>Confirm payment details:</p>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                      <div>
+                        <label style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500, display: 'block', marginBottom: '0.3rem' }}>Payment date</label>
+                        <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} style={{ ...inputStyle, width: '100%' }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500, display: 'block', marginBottom: '0.3rem' }}>Amount (COP) — edit if different</label>
+                        <input type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} style={{ ...inputStyle, width: '100%' }} />
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button onClick={() => confirmPaid(f)} style={{ flex: 1, padding: '0.6rem', background: '#22c55e', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer' }}>
+                        Confirm Payment
+                      </button>
+                      <button onClick={() => { setPendingPay(null); setPayAmount(''); }} style={{ padding: '0.6rem 1rem', background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer' }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Add new fixed expense */}
+      <div style={{ background: 'white', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+        <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#1e293b', marginBottom: '1rem' }}>Add Fixed Expense</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+          <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Name (e.g. Rent)" style={{ ...inputStyle, gridColumn: '1 / -1' }} />
+          <input value={newAmount} onChange={e => setNewAmount(e.target.value)} placeholder="Amount" type="number" style={inputStyle} />
+          <select value={newCategory} onChange={e => setNewCategory(e.target.value)} style={inputStyle}>
+            <option value="">Category...</option>
+            {(categories.expense || []).map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        {error && <p style={{ color: '#ef4444', fontSize: '0.85rem', marginBottom: '0.75rem' }}>{error}</p>}
+        <button onClick={addFixed} style={{ width: '100%', padding: '0.75rem', background: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600 }}>
+          + Add Fixed Expense
+        </button>
+      </div>
+    </div>
+  );
+}
