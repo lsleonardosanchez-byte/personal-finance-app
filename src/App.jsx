@@ -6,6 +6,7 @@ import Dashboard from './components/Dashboard';
 import TransactionForm from './components/TransactionForm';
 import TransactionList from './components/TransactionList';
 import AdminPanel from './components/AdminPanel';
+import FixedExpenses from './components/FixedExpenses';
 
 const DEFAULT_CATEGORIES = {
   income: ['Salary', 'Freelance', 'Other Income'],
@@ -21,13 +22,14 @@ export default function App() {
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [selectedMonths, setSelectedMonths] = useState([new Date().getMonth()]);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [txVersion, setTxVersion] = useState(0);
 
   useEffect(() => {
     if (unlocked && currentUser) {
       fetchTransactions();
       fetchCategories();
     }
-  }, [unlocked, currentUser]);
+  }, [unlocked, currentUser, txVersion]);
 
   const fetchTransactions = async () => {
     const q = query(collection(db, 'transactions'), where('userId', '==', currentUser));
@@ -75,6 +77,14 @@ export default function App() {
 
   if (!unlocked) return <PinScreen onUnlock={handleUnlock} />;
 
+  const navItems = [
+    { key: 'dashboard', label: 'Dashboard' },
+    { key: 'add', label: '+ Add' },
+    { key: 'transactions', label: 'History' },
+    { key: 'fixed', label: 'Fixed' },
+    { key: 'categories', label: 'Categories' },
+  ];
+
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
       <nav style={{
@@ -84,14 +94,12 @@ export default function App() {
       }}>
         <span style={{ fontWeight: 700, fontSize: '1.2rem' }}>My Finances</span>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          {['dashboard', 'add', 'transactions', 'categories'].map(v => (
-            <button key={v} onClick={() => setView(v)} style={{
-              background: view === v ? 'rgba(255,255,255,0.25)' : 'transparent',
+          {navItems.map(({ key, label }) => (
+            <button key={key} onClick={() => setView(key)} style={{
+              background: view === key ? 'rgba(255,255,255,0.25)' : 'transparent',
               border: 'none', color: 'white', padding: '0.4rem 0.8rem',
               borderRadius: '6px', fontWeight: 500, fontSize: '0.85rem'
-            }}>
-              {v === 'add' ? '+ Add' : v === 'transactions' ? 'History' : v.charAt(0).toUpperCase() + v.slice(1)}
-            </button>
+            }}>{label}</button>
           ))}
           {isAdmin && (
             <button onClick={() => setView('admin')} style={{
@@ -135,6 +143,13 @@ export default function App() {
             selectedYear={selectedYear}
             onMonthsChange={setSelectedMonths}
             onYearChange={setSelectedYear}
+          />
+        )}
+        {view === 'fixed' && (
+          <FixedExpenses
+            userId={currentUser}
+            categories={categories}
+            onTransactionChange={() => setTxVersion(v => v + 1)}
           />
         )}
         {view === 'categories' && (
