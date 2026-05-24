@@ -1,10 +1,18 @@
 import React, { useState } from 'react';
 
+const today = () => {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 export default function TransactionForm({ categories, onAdd }) {
   const [type, setType] = useState('expense');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(today());
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
 
@@ -16,6 +24,7 @@ export default function TransactionForm({ categories, onAdd }) {
     onAdd({ type, amount: Number(amount), category, date, note });
     setAmount('');
     setCategory('');
+    setDate(today());
     setNote('');
   };
 
