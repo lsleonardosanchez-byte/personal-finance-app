@@ -143,6 +143,7 @@ export default function App() {
             selectedYear={selectedYear}
             onMonthsChange={setSelectedMonths}
             onYearChange={setSelectedYear}
+            categories={categories}
           />
         )}
         {view === 'fixed' && (
