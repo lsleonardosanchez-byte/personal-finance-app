@@ -170,6 +170,8 @@ function CategoriesEditor({ categories, onSave }) {
   const [newIncome, setNewIncome] = useState('');
   const [newExpense, setNewExpense] = useState('');
   const [saved, setSaved] = useState(false);
+  const [editingTag, setEditingTag] = useState(null);
+  const [editingValue, setEditingValue] = useState('');
 
   const addIncome = () => {
     const trimmed = newIncome.trim();
@@ -185,6 +187,28 @@ function CategoriesEditor({ categories, onSave }) {
     setNewExpense('');
   };
 
+  const startEditTag = (type, name) => {
+    setEditingTag({ type, name });
+    setEditingValue(name);
+  };
+
+  const saveEditTag = () => {
+    const trimmed = editingValue.trim();
+    if (!trimmed) return;
+    if (editingTag.type === 'income') {
+      setIncomeList(prev => prev.map(c => c === editingTag.name ? trimmed : c));
+    } else {
+      setExpenseList(prev => prev.map(c => c === editingTag.name ? trimmed : c));
+    }
+    setEditingTag(null);
+    setEditingValue('');
+  };
+
+  const deleteTag = (type, name) => {
+    if (type === 'income') setIncomeList(prev => prev.filter(c => c !== name));
+    else setExpenseList(prev => prev.filter(c => c !== name));
+  };
+
   const handleSave = () => {
     onSave({ income: incomeList, expense: expenseList });
     setSaved(true);
@@ -192,7 +216,8 @@ function CategoriesEditor({ categories, onSave }) {
   };
 
   const tagStyle = (color) => ({
-    display: 'inline-block', padding: '0.3rem 0.75rem', borderRadius: '20px',
+    display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+    padding: '0.3rem 0.75rem', borderRadius: '20px',
     fontSize: '0.85rem', fontWeight: 500, margin: '0.25rem',
     background: color === 'green' ? '#f0fdf4' : '#fef2f2',
     color: color === 'green' ? '#22c55e' : '#ef4444',
@@ -209,21 +234,68 @@ function CategoriesEditor({ categories, onSave }) {
 
   return (
     <div style={{ maxWidth: '500px', margin: '0 auto' }}>
-      <h2 style={{ marginBottom: '1.5rem', color: '#1e293b' }}>Edit Categories</h2>
+      <h2 style={{ marginBottom: '0.5rem', color: '#1e293b' }}>Edit Categories</h2>
+      <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '1.5rem' }}>Click any category to rename it. Click × to delete.</p>
       <div style={{ background: 'white', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+
         <label style={{ display: 'block', fontWeight: 600, color: '#22c55e', marginBottom: '0.5rem' }}>Income Categories</label>
-        <div>{incomeList.map(c => <span key={c} style={tagStyle('green')}>{c}</span>)}</div>
+        <div>
+          {incomeList.map(c => (
+            editingTag?.type === 'income' && editingTag?.name === c ? (
+              <span key={c} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', margin: '0.25rem' }}>
+                <input
+                  autoFocus
+                  value={editingValue}
+                  onChange={e => setEditingValue(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') saveEditTag(); if (e.key === 'Escape') setEditingTag(null); }}
+                  style={{ padding: '0.3rem 0.5rem', border: '2px solid #22c55e', borderRadius: '8px', fontSize: '0.85rem', width: '120px' }}
+                />
+                <button onClick={saveEditTag} style={{ background: '#22c55e', color: 'white', border: 'none', borderRadius: '6px', padding: '0.3rem 0.5rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>OK</button>
+                <button onClick={() => setEditingTag(null)} style={{ background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '6px', padding: '0.3rem 0.5rem', cursor: 'pointer', fontSize: '0.8rem' }}>✕</button>
+              </span>
+            ) : (
+              <span key={c} style={tagStyle('green')}>
+                <span onClick={() => startEditTag('income', c)} style={{ cursor: 'pointer' }}>✏️ {c}</span>
+                <span onClick={() => deleteTag('income', c)} style={{ cursor: 'pointer', marginLeft: '0.25rem', opacity: 0.6, fontWeight: 700 }}>×</span>
+              </span>
+            )
+          ))}
+        </div>
         <div style={inputRow}>
           <input value={newIncome} onChange={e => setNewIncome(e.target.value)} onKeyDown={e => e.key === 'Enter' && addIncome()} placeholder="New income category..." style={inputStyle} />
           <button onClick={addIncome} style={addBtnStyle('green')}>+ Add</button>
         </div>
+
         <hr style={{ border: 'none', borderTop: '1px solid #f1f5f9', margin: '0.5rem 0 1rem' }} />
+
         <label style={{ display: 'block', fontWeight: 600, color: '#ef4444', marginBottom: '0.5rem' }}>Expense Categories</label>
-        <div>{expenseList.map(c => <span key={c} style={tagStyle('red')}>{c}</span>)}</div>
+        <div>
+          {expenseList.map(c => (
+            editingTag?.type === 'expense' && editingTag?.name === c ? (
+              <span key={c} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', margin: '0.25rem' }}>
+                <input
+                  autoFocus
+                  value={editingValue}
+                  onChange={e => setEditingValue(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') saveEditTag(); if (e.key === 'Escape') setEditingTag(null); }}
+                  style={{ padding: '0.3rem 0.5rem', border: '2px solid #ef4444', borderRadius: '8px', fontSize: '0.85rem', width: '120px' }}
+                />
+                <button onClick={saveEditTag} style={{ background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', padding: '0.3rem 0.5rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>OK</button>
+                <button onClick={() => setEditingTag(null)} style={{ background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '6px', padding: '0.3rem 0.5rem', cursor: 'pointer', fontSize: '0.8rem' }}>✕</button>
+              </span>
+            ) : (
+              <span key={c} style={tagStyle('red')}>
+                <span onClick={() => startEditTag('expense', c)} style={{ cursor: 'pointer' }}>✏️ {c}</span>
+                <span onClick={() => deleteTag('expense', c)} style={{ cursor: 'pointer', marginLeft: '0.25rem', opacity: 0.6, fontWeight: 700 }}>×</span>
+              </span>
+            )
+          ))}
+        </div>
         <div style={inputRow}>
           <input value={newExpense} onChange={e => setNewExpense(e.target.value)} onKeyDown={e => e.key === 'Enter' && addExpense()} placeholder="New expense category..." style={inputStyle} />
           <button onClick={addExpense} style={addBtnStyle('red')}>+ Add</button>
         </div>
+
         <button onClick={handleSave} style={{ width: '100%', padding: '0.75rem', background: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, marginTop: '0.5rem' }}>
           {saved ? 'Saved!' : 'Save Categories'}
         </button>
