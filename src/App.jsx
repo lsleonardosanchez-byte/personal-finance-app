@@ -185,8 +185,8 @@ export default function App() {
           />
         )}
         {view === 'categories' && (
-          <CategoriesEditor categories={categories} onSave={saveCategories} t={t} />
-        )}
+  <CategoriesEditor key={language} categories={categories} onSave={saveCategories} t={t} />
+)}
         {view === 'admin' && isAdmin && (
           <AdminPanel t={t} />
         )}
