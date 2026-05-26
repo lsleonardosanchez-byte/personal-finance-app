@@ -17,7 +17,7 @@ export default function PinScreen({ onUnlock }) {
 
   const handleCedulaSubmit = async () => {
     const trimmed = cedula.trim();
-    if (!trimmed) return setError('Enter your cédula');
+    if (!trimmed) return setError('Enter your cédula / Ingresa tu cédula');
     setLoading(true);
     setError('');
     const snap = await getDoc(doc(db, 'users', trimmed));
@@ -48,21 +48,21 @@ export default function PinScreen({ onUnlock }) {
     if (match) {
       onUnlock(cedula.trim(), cedula.trim() === ADMIN_CEDULA);
     } else {
-      setError('Wrong PIN. Try again.');
+      setError('Wrong PIN / PIN incorrecto');
       setPin('');
     }
   };
 
   const handleSetup = async () => {
     if (step === 'enter') {
-      if (pin.length < 4) return setError('Enter 4 digits');
+      if (pin.length < 4) return setError('Enter 4 digits / Ingresa 4 dígitos');
       setConfirmPin(pin);
       setPin('');
       setStep('confirm');
       setError('');
     } else {
       if (pin !== confirmPin) {
-        setError('PINs do not match. Try again.');
+        setError('PINs do not match / Los PINs no coinciden');
         setPin('');
         setStep('enter');
       } else {
@@ -118,7 +118,7 @@ export default function PinScreen({ onUnlock }) {
 
   if (screen === 'cedula') return (
     <Card>
-      <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '1rem' }}>Enter your cédula to continue</p>
+      <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '1rem' }}>Enter your cédula / Ingresa tu cédula</p>
       <input
         value={cedula}
         onChange={e => setCedula(e.target.value)}
@@ -131,26 +131,26 @@ export default function PinScreen({ onUnlock }) {
       />
       {error && <p style={{ color: '#ef4444', fontSize: '0.85rem', marginBottom: '1rem' }}>{error}</p>}
       <button onClick={handleCedulaSubmit} disabled={loading} style={{ width: '100%', padding: '0.75rem', background: '#6366f1', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 600 }}>
-        {loading ? 'Checking...' : 'Continue'}
+        {loading ? 'Checking...' : 'Continue / Continuar'}
       </button>
     </Card>
   );
 
   if (screen === 'login') return (
     <Card>
-      <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Welcome back</p>
+      <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Welcome / Bienvenido</p>
       <p style={{ fontWeight: 700, color: '#1e293b', marginBottom: '1.5rem' }}>{cedula}</p>
       <Keypad onSubmit={handleLogin} submitLabel="OK" />
-      <button onClick={() => { setScreen('cedula'); setPin(''); setError(''); }} style={{ marginTop: '1rem', background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.85rem' }}>← Back</button>
+      <button onClick={() => { setScreen('cedula'); setPin(''); setError(''); }} style={{ marginTop: '1rem', background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.85rem' }}>← Back / Volver</button>
     </Card>
   );
 
   if (screen === 'setup') return (
     <Card>
       <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-        {step === 'enter' ? 'Create your 4-digit PIN' : 'Confirm your PIN'}
+        {step === 'enter' ? 'Create your PIN / Crea tu PIN' : 'Confirm your PIN / Confirma tu PIN'}
       </p>
-      <Keypad onSubmit={handleSetup} submitLabel={step === 'enter' ? 'Next' : 'OK'} />
+      <Keypad onSubmit={handleSetup} submitLabel={step === 'enter' ? 'Next / Siguiente' : 'OK'} />
     </Card>
   );
 }
