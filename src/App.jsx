@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { db } from './firebase';
-import { doc, getDoc, setDoc, collection, addDoc, getDocs, deleteDoc, query, where } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, addDoc, getDocs, deleteDoc, query, where, updateDoc } from 'firebase/firestore';
 import PinScreen from './components/PinScreen';
 import Dashboard from './components/Dashboard';
 import TransactionForm from './components/TransactionForm';
 import TransactionList from './components/TransactionList';
 import AdminPanel from './components/AdminPanel';
 import FixedExpenses from './components/FixedExpenses';
+import lang from './lang';
 
 const DEFAULT_CATEGORIES = {
   income: ['Salary', 'Freelance', 'Other Income'],
@@ -23,11 +24,15 @@ export default function App() {
   const [selectedMonths, setSelectedMonths] = useState([new Date().getMonth()]);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [txVersion, setTxVersion] = useState(0);
+  const [language, setLanguage] = useState('en');
+
+  const t = lang[language];
 
   useEffect(() => {
     if (unlocked && currentUser) {
       fetchTransactions();
       fetchCategories();
+      fetchLanguage();
     }
   }, [unlocked, currentUser, txVersion]);
 
@@ -45,6 +50,20 @@ export default function App() {
     else await setDoc(ref, DEFAULT_CATEGORIES);
   };
 
+  const fetchLanguage = async () => {
+    const ref = doc(db, 'users', currentUser);
+    const snap = await getDoc(ref);
+    if (snap.exists() && snap.data().language) {
+      setLanguage(snap.data().language);
+    }
+  };
+
+  const toggleLanguage = async () => {
+    const newLang = language === 'en' ? 'es' : 'en';
+    setLanguage(newLang);
+    await updateDoc(doc(db, 'users', currentUser), { language: newLang });
+  };
+
   const addTransaction = async (transaction) => {
     const data = { ...transaction, userId: currentUser };
     const docRef = await addDoc(collection(db, 'transactions'), data);
@@ -53,7 +72,7 @@ export default function App() {
 
   const deleteTransaction = async (id) => {
     await deleteDoc(doc(db, 'transactions', id));
-    setTransactions(prev => prev.filter(t => t.id !== id));
+    setTransactions(prev => prev.filter(tx => tx.id !== id));
   };
 
   const saveCategories = async (newCategories) => {
@@ -73,16 +92,17 @@ export default function App() {
     setIsAdmin(false);
     setView('dashboard');
     setTransactions([]);
+    setLanguage('en');
   };
 
   if (!unlocked) return <PinScreen onUnlock={handleUnlock} />;
 
   const navItems = [
-    { key: 'dashboard', label: 'Dashboard' },
-    { key: 'add', label: '+ Add' },
-    { key: 'transactions', label: 'History' },
-    { key: 'fixed', label: 'Fixed' },
-    { key: 'categories', label: 'Categories' },
+    { key: 'dashboard', label: t.dashboard },
+    { key: 'add', label: t.add },
+    { key: 'transactions', label: t.history },
+    { key: 'fixed', label: t.fixed },
+    { key: 'categories', label: t.categories },
   ];
 
   return (
@@ -92,8 +112,8 @@ export default function App() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         boxShadow: '0 2px 8px rgba(99,102,241,0.3)'
       }}>
-        <span style={{ fontWeight: 700, fontSize: '1.2rem' }}>My Finances</span>
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <span style={{ fontWeight: 700, fontSize: '1.2rem' }}>{t.appName}</span>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
           {navItems.map(({ key, label }) => (
             <button key={key} onClick={() => setView(key)} style={{
               background: view === key ? 'rgba(255,255,255,0.25)' : 'transparent',
@@ -106,12 +126,19 @@ export default function App() {
               background: view === 'admin' ? 'rgba(255,255,255,0.25)' : 'transparent',
               border: '1px solid rgba(255,255,255,0.4)', color: 'white', padding: '0.4rem 0.8rem',
               borderRadius: '6px', fontWeight: 500, fontSize: '0.85rem'
-            }}>Admin</button>
+            }}>{t.admin}</button>
           )}
+          <button onClick={toggleLanguage} style={{
+            background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
+            color: 'white', padding: '0.4rem 0.8rem', borderRadius: '6px',
+            fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer'
+          }}>
+            {language === 'en' ? '🇨🇴 ES' : '🇺🇸 EN'}
+          </button>
           <button onClick={handleLogout} style={{
             background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.7)',
             padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.85rem'
-          }}>Exit</button>
+          }}>{t.exit}</button>
         </div>
       </nav>
 
@@ -126,12 +153,14 @@ export default function App() {
             onMonthsChange={setSelectedMonths}
             onYearChange={setSelectedYear}
             onMonthChange={(m, y) => { setSelectedMonths([m]); setSelectedYear(y); }}
+            t={t}
           />
         )}
         {view === 'add' && (
           <TransactionForm
             categories={categories}
-            onAdd={(t) => { addTransaction(t); setView('transactions'); }}
+            onAdd={(tx) => { addTransaction(tx); setView('transactions'); }}
+            t={t}
           />
         )}
         {view === 'transactions' && (
@@ -144,6 +173,7 @@ export default function App() {
             onMonthsChange={setSelectedMonths}
             onYearChange={setSelectedYear}
             categories={categories}
+            t={t}
           />
         )}
         {view === 'fixed' && (
@@ -151,20 +181,21 @@ export default function App() {
             userId={currentUser}
             categories={categories}
             onTransactionChange={() => setTxVersion(v => v + 1)}
+            t={t}
           />
         )}
         {view === 'categories' && (
-          <CategoriesEditor categories={categories} onSave={saveCategories} />
+          <CategoriesEditor categories={categories} onSave={saveCategories} t={t} />
         )}
         {view === 'admin' && isAdmin && (
-          <AdminPanel />
+          <AdminPanel t={t} />
         )}
       </main>
     </div>
   );
 }
 
-function CategoriesEditor({ categories, onSave }) {
+function CategoriesEditor({ categories, onSave, t }) {
   const [incomeList, setIncomeList] = useState(categories.income);
   const [expenseList, setExpenseList] = useState(categories.expense);
   const [newIncome, setNewIncome] = useState('');
@@ -234,23 +265,16 @@ function CategoriesEditor({ categories, onSave }) {
 
   return (
     <div style={{ maxWidth: '500px', margin: '0 auto' }}>
-      <h2 style={{ marginBottom: '0.5rem', color: '#1e293b' }}>Edit Categories</h2>
-      <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '1.5rem' }}>Click any category to rename it. Click × to delete.</p>
+      <h2 style={{ marginBottom: '0.5rem', color: '#1e293b' }}>{t.editCategories}</h2>
+      <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '1.5rem' }}>{t.editCategoriesHint}</p>
       <div style={{ background: 'white', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
-
-        <label style={{ display: 'block', fontWeight: 600, color: '#22c55e', marginBottom: '0.5rem' }}>Income Categories</label>
+        <label style={{ display: 'block', fontWeight: 600, color: '#22c55e', marginBottom: '0.5rem' }}>{t.incomeCategories}</label>
         <div>
           {incomeList.map(c => (
             editingTag?.type === 'income' && editingTag?.name === c ? (
               <span key={c} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', margin: '0.25rem' }}>
-                <input
-                  autoFocus
-                  value={editingValue}
-                  onChange={e => setEditingValue(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') saveEditTag(); if (e.key === 'Escape') setEditingTag(null); }}
-                  style={{ padding: '0.3rem 0.5rem', border: '2px solid #22c55e', borderRadius: '8px', fontSize: '0.85rem', width: '120px' }}
-                />
-                <button onClick={saveEditTag} style={{ background: '#22c55e', color: 'white', border: 'none', borderRadius: '6px', padding: '0.3rem 0.5rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>OK</button>
+                <input autoFocus value={editingValue} onChange={e => setEditingValue(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveEditTag(); if (e.key === 'Escape') setEditingTag(null); }} style={{ padding: '0.3rem 0.5rem', border: '2px solid #22c55e', borderRadius: '8px', fontSize: '0.85rem', width: '120px' }} />
+                <button onClick={saveEditTag} style={{ background: '#22c55e', color: 'white', border: 'none', borderRadius: '6px', padding: '0.3rem 0.5rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>{t.ok}</button>
                 <button onClick={() => setEditingTag(null)} style={{ background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '6px', padding: '0.3rem 0.5rem', cursor: 'pointer', fontSize: '0.8rem' }}>✕</button>
               </span>
             ) : (
@@ -262,25 +286,19 @@ function CategoriesEditor({ categories, onSave }) {
           ))}
         </div>
         <div style={inputRow}>
-          <input value={newIncome} onChange={e => setNewIncome(e.target.value)} onKeyDown={e => e.key === 'Enter' && addIncome()} placeholder="New income category..." style={inputStyle} />
-          <button onClick={addIncome} style={addBtnStyle('green')}>+ Add</button>
+          <input value={newIncome} onChange={e => setNewIncome(e.target.value)} onKeyDown={e => e.key === 'Enter' && addIncome()} placeholder={t.newIncomeCategory} style={inputStyle} />
+          <button onClick={addIncome} style={addBtnStyle('green')}>+ {t.add}</button>
         </div>
 
         <hr style={{ border: 'none', borderTop: '1px solid #f1f5f9', margin: '0.5rem 0 1rem' }} />
 
-        <label style={{ display: 'block', fontWeight: 600, color: '#ef4444', marginBottom: '0.5rem' }}>Expense Categories</label>
+        <label style={{ display: 'block', fontWeight: 600, color: '#ef4444', marginBottom: '0.5rem' }}>{t.expenseCategories}</label>
         <div>
           {expenseList.map(c => (
             editingTag?.type === 'expense' && editingTag?.name === c ? (
               <span key={c} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', margin: '0.25rem' }}>
-                <input
-                  autoFocus
-                  value={editingValue}
-                  onChange={e => setEditingValue(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') saveEditTag(); if (e.key === 'Escape') setEditingTag(null); }}
-                  style={{ padding: '0.3rem 0.5rem', border: '2px solid #ef4444', borderRadius: '8px', fontSize: '0.85rem', width: '120px' }}
-                />
-                <button onClick={saveEditTag} style={{ background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', padding: '0.3rem 0.5rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>OK</button>
+                <input autoFocus value={editingValue} onChange={e => setEditingValue(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveEditTag(); if (e.key === 'Escape') setEditingTag(null); }} style={{ padding: '0.3rem 0.5rem', border: '2px solid #ef4444', borderRadius: '8px', fontSize: '0.85rem', width: '120px' }} />
+                <button onClick={saveEditTag} style={{ background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', padding: '0.3rem 0.5rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>{t.ok}</button>
                 <button onClick={() => setEditingTag(null)} style={{ background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '6px', padding: '0.3rem 0.5rem', cursor: 'pointer', fontSize: '0.8rem' }}>✕</button>
               </span>
             ) : (
@@ -292,12 +310,12 @@ function CategoriesEditor({ categories, onSave }) {
           ))}
         </div>
         <div style={inputRow}>
-          <input value={newExpense} onChange={e => setNewExpense(e.target.value)} onKeyDown={e => e.key === 'Enter' && addExpense()} placeholder="New expense category..." style={inputStyle} />
-          <button onClick={addExpense} style={addBtnStyle('red')}>+ Add</button>
+          <input value={newExpense} onChange={e => setNewExpense(e.target.value)} onKeyDown={e => e.key === 'Enter' && addExpense()} placeholder={t.newExpenseCategory} style={inputStyle} />
+          <button onClick={addExpense} style={addBtnStyle('red')}>+ {t.add}</button>
         </div>
 
         <button onClick={handleSave} style={{ width: '100%', padding: '0.75rem', background: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, marginTop: '0.5rem' }}>
-          {saved ? 'Saved!' : 'Save Categories'}
+          {saved ? t.saved : t.saveCategories}
         </button>
       </div>
     </div>
