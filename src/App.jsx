@@ -8,6 +8,7 @@ import TransactionList from './components/TransactionList';
 import AdminPanel from './components/AdminPanel';
 import FixedExpenses from './components/FixedExpenses';
 import SalarySimulator from './components/SalarySimulator';
+import Notes from './components/Notes';
 import lang from './lang';
 
 const DEFAULT_CATEGORIES = {
@@ -104,6 +105,7 @@ export default function App() {
     { key: 'transactions', label: t.history },
     { key: 'fixed', label: t.fixed },
     { key: 'salary', label: '💼 Salary' },
+    { key: 'notes', label: '📝 Notes' },
     { key: 'categories', label: t.categories },
   ];
 
@@ -191,6 +193,9 @@ export default function App() {
         )}
         {view === 'salary' && (
           <SalarySimulator userId={currentUser} t={t} />
+        )}
+        {view === 'notes' && (
+          <Notes userId={currentUser} t={t} />
         )}
         {view === 'categories' && (
           <CategoriesEditor key={language} categories={categories} onSave={saveCategories} t={t} />
@@ -297,9 +302,7 @@ function CategoriesEditor({ categories, onSave, t }) {
           <input value={newIncome} onChange={e => setNewIncome(e.target.value)} onKeyDown={e => e.key === 'Enter' && addIncome()} placeholder={t.newIncomeCategory} style={inputStyle} />
           <button onClick={addIncome} style={addBtnStyle('green')}>+ {t.add}</button>
         </div>
-
         <hr style={{ border: 'none', borderTop: '1px solid #f1f5f9', margin: '0.5rem 0 1rem' }} />
-
         <label style={{ display: 'block', fontWeight: 600, color: '#ef4444', marginBottom: '0.5rem' }}>{t.expenseCategories}</label>
         <div>
           {expenseList.map(c => (
@@ -321,7 +324,6 @@ function CategoriesEditor({ categories, onSave, t }) {
           <input value={newExpense} onChange={e => setNewExpense(e.target.value)} onKeyDown={e => e.key === 'Enter' && addExpense()} placeholder={t.newExpenseCategory} style={inputStyle} />
           <button onClick={addExpense} style={addBtnStyle('red')}>+ {t.add}</button>
         </div>
-
         <button onClick={handleSave} style={{ width: '100%', padding: '0.75rem', background: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, marginTop: '0.5rem' }}>
           {saved ? t.saved : t.saveCategories}
         </button>
