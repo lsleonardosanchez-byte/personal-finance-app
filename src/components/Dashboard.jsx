@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { db } from '../firebase';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, Cell
 } from 'recharts';
@@ -6,13 +8,30 @@ import {
 const COLORS = ['#6366f1','#22c55e','#f59e0b','#ef4444','#06b6d4','#8b5cf6','#ec4899','#14b8a6'];
 const fmt = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
 
-export default function Dashboard({ transactions, currentMonth, currentYear, onMonthChange, selectedMonths, selectedYear, onMonthsChange, onYearChange, t }) {
+export default function Dashboard({ transactions, currentMonth, currentYear, onMonthChange, selectedMonths, selectedYear, onMonthsChange, onYearChange, t, userId }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [expandedCategories, setExpandedCategories] = useState({});
+  const [fixedData, setFixedData] = useState({ list: [], payments: {} });
 
   const months = selectedMonths && selectedMonths.length > 0 ? selectedMonths : [currentMonth];
   const year = selectedYear || currentYear;
+
+  useEffect(() => {
+    if (userId) fetchFixedData();
+  }, [userId, months[0], year]);
+
+  const fetchFixedData = async () => {
+    const monthKey = `${year}-${String(months[0] + 1).padStart(2, '0')}`;
+    const q = query(collection(db, 'fixedExpenses'), where('userId', '==', userId));
+    const snap = await getDocs(q);
+    const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const pq = query(collection(db, 'fixedPayments'), where('userId', '==', userId), where('monthKey', '==', monthKey));
+    const psnap = await getDocs(pq);
+    const pmap = {};
+    psnap.docs.forEach(d => { pmap[d.data().fixedId] = d.data(); });
+    setFixedData({ list, payments: pmap });
+  };
 
   const filtered = transactions.filter(tr => {
     const [y, m] = tr.date.split('-').map(Number);
@@ -24,6 +43,10 @@ export default function Dashboard({ transactions, currentMonth, currentYear, onM
   const income = filtered.filter(tr => tr.type === 'income').reduce((s, tr) => s + tr.amount, 0);
   const expenses = filtered.filter(tr => tr.type === 'expense').reduce((s, tr) => s + tr.amount, 0);
   const balance = income - expenses;
+  const fixedPending = fixedData.list
+    .filter(f => !fixedData.payments[f.id])
+    .reduce((s, f) => s + f.amount, 0);
+  const realBalance = balance - fixedPending;
 
   const allCategories = [...new Set(filtered.filter(tr => tr.type === 'expense').map(tr => tr.category))];
   const categoryData = allCategories.map(cat => {
@@ -43,7 +66,7 @@ export default function Dashboard({ transactions, currentMonth, currentYear, onM
   });
 
   const weeklyData = [1,2,3,4].map(week => {
-    const entry = { name: `${t.weeklyOverview.split(' ')[0]} ${week}` };
+    const entry = { name: `W${week}` };
     months.forEach(m => {
       const weekT = categoryFiltered.filter(tr => {
         const [y, tm, td] = tr.date.split('-').map(Number);
@@ -100,7 +123,6 @@ export default function Dashboard({ transactions, currentMonth, currentYear, onM
   };
 
   const chartStyle = { background: 'white', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '1rem' };
-
   const weeklyKeys = months.length === 1
     ? [{ key: t.income, color: '#22c55e' }, { key: t.expenses, color: '#ef4444' }]
     : months.flatMap(m => [
@@ -142,17 +164,27 @@ export default function Dashboard({ transactions, currentMonth, currentYear, onM
       </div>
 
       {/* Summary cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', marginBottom: '0.75rem' }}>
         {[
           { label: t.income, value: income, color: '#22c55e', bg: '#f0fdf4' },
           { label: t.expenses, value: expenses, color: '#ef4444', bg: '#fef2f2' },
-          { label: t.balance, value: balance, color: balance >= 0 ? '#6366f1' : '#ef4444', bg: '#eef2ff' }
         ].map(card => (
           <div key={card.label} style={{ background: card.bg, borderRadius: '12px', padding: '1.25rem', textAlign: 'center' }}>
             <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.5rem', fontWeight: 500 }}>{card.label}</p>
             <p style={{ fontSize: '1rem', fontWeight: 700, color: card.color }}>{fmt(card.value)}</p>
           </div>
         ))}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
+        <div style={{ background: '#fef9ec', borderRadius: '12px', padding: '1.25rem', textAlign: 'center', border: '1px solid #fde68a' }}>
+          <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.5rem', fontWeight: 500 }}>📌 {t.fixed} ({t.pending})</p>
+          <p style={{ fontSize: '1rem', fontWeight: 700, color: '#f59e0b' }}>{fmt(fixedPending)}</p>
+        </div>
+        <div style={{ background: realBalance >= 0 ? '#eef2ff' : '#fef2f2', borderRadius: '12px', padding: '1.25rem', textAlign: 'center', border: `1px solid ${realBalance >= 0 ? '#c7d2fe' : '#fecaca'}` }}>
+          <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.25rem', fontWeight: 500 }}>💡 {t.balance}</p>
+          <p style={{ fontSize: '1rem', fontWeight: 700, color: realBalance >= 0 ? '#6366f1' : '#ef4444' }}>{fmt(realBalance)}</p>
+          <p style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.2rem' }}>{t.income} - {t.expenses} - {t.fixed}</p>
+        </div>
       </div>
 
       {/* Expenses by category */}
