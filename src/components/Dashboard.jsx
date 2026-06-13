@@ -182,7 +182,10 @@ export default function Dashboard({ transactions, currentMonth, currentYear, onM
         </div>
         <div style={{ background: realBalance >= 0 ? '#eef2ff' : '#fef2f2', borderRadius: '12px', padding: '1.25rem', textAlign: 'center', border: `1px solid ${realBalance >= 0 ? '#c7d2fe' : '#fecaca'}` }}>
           <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.25rem', fontWeight: 500 }}>💡 {t.balance}</p>
-          <p style={{ fontSize: '1rem', fontWeight: 700, color: realBalance >= 0 ? '#6366f1' : '#ef4444' }}>{fmt(realBalance)}</p>
+          <p style={{ fontSize: '1rem', fontWeight: 700, color: realBalance >= 0 ? '#6366f1' : '#ef4444' }}>
+            {fmt(realBalance)}
+            <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 500, marginLeft: '0.4rem' }}>({fmt(balance)})</span>
+          </p>
           <p style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.2rem' }}>{t.income} - {t.expenses} - {t.fixed}</p>
         </div>
       </div>
