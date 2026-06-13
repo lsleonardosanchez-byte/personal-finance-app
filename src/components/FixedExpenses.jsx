@@ -214,10 +214,10 @@ export default function FixedExpenses({ userId, categories, onTransactionChange,
                           {t.paid} {payments[f.id]?.date ? `· ${payments[f.id].date}` : ''}
                         </span>
                       )}
-                      {!isPaid && isCurrentMonth && (
+                      {!isPaid && (isCurrentMonth || isFutureMonth) && (
                         <button onClick={() => startEdit(f)} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '0.3rem 0.6rem', fontSize: '0.8rem', cursor: 'pointer', color: '#6366f1', fontWeight: 500 }}>{t.edit}</button>
                       )}
-                      {isCurrentMonth && (
+                      {(isCurrentMonth || isFutureMonth) && (
                         <button onClick={() => deleteFixed(f.id)} style={{ background: 'none', border: 'none', color: '#cbd5e1', fontSize: '1.1rem', cursor: 'pointer' }}>🗑️</button>
                       )}
                     </div>
