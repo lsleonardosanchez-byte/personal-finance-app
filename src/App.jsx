@@ -154,6 +154,7 @@ export default function App() {
             onYearChange={setSelectedYear}
             onMonthChange={(m, y) => { setSelectedMonths([m]); setSelectedYear(y); }}
             t={t}
+            userId={currentUser}
           />
         )}
         {view === 'add' && (
