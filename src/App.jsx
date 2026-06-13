@@ -7,6 +7,7 @@ import TransactionForm from './components/TransactionForm';
 import TransactionList from './components/TransactionList';
 import AdminPanel from './components/AdminPanel';
 import FixedExpenses from './components/FixedExpenses';
+import SalarySimulator from './components/SalarySimulator';
 import lang from './lang';
 
 const DEFAULT_CATEGORIES = {
@@ -102,6 +103,7 @@ export default function App() {
     { key: 'add', label: t.add },
     { key: 'transactions', label: t.history },
     { key: 'fixed', label: t.fixed },
+    { key: 'salary', label: '💼 Salary' },
     { key: 'categories', label: t.categories },
   ];
 
@@ -187,9 +189,12 @@ export default function App() {
             selectedYear={selectedYear}
           />
         )}
+        {view === 'salary' && (
+          <SalarySimulator userId={currentUser} t={t} />
+        )}
         {view === 'categories' && (
-  <CategoriesEditor key={language} categories={categories} onSave={saveCategories} t={t} />
-)}
+          <CategoriesEditor key={language} categories={categories} onSave={saveCategories} t={t} />
+        )}
         {view === 'admin' && isAdmin && (
           <AdminPanel t={t} />
         )}
