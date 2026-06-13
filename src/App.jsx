@@ -182,6 +182,8 @@ export default function App() {
             categories={categories}
             onTransactionChange={() => setTxVersion(v => v + 1)}
             t={t}
+            selectedMonth={selectedMonths[0]}
+            selectedYear={selectedYear}
           />
         )}
         {view === 'categories' && (
