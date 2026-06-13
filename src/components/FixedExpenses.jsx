@@ -9,7 +9,7 @@ const today = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-export default function FixedExpenses({ userId, categories, onTransactionChange, t }) {
+export default function FixedExpenses({ userId, categories, onTransactionChange, t, selectedMonth, selectedYear }) {
   const [fixedList, setFixedList] = useState([]);
   const [payments, setPayments] = useState({});
   const [newName, setNewName] = useState('');
@@ -23,11 +23,19 @@ export default function FixedExpenses({ userId, categories, onTransactionChange,
   const [editingId, setEditingId] = useState(null);
   const [editValues, setEditValues] = useState({});
 
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
-  const monthKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
 
-  useEffect(() => { fetchData(); }, [userId]);
+  const viewMonth = selectedMonth !== undefined ? selectedMonth : currentMonth;
+  const viewYear = selectedYear !== undefined ? selectedYear : currentYear;
+  const monthKey = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}`;
+
+  const isCurrentMonth = viewMonth === currentMonth && viewYear === currentYear;
+  const isPastMonth = viewYear < currentYear || (viewYear === currentYear && viewMonth < currentMonth);
+  const isFutureMonth = viewYear > currentYear || (viewYear === currentYear && viewMonth > currentMonth);
+
+  useEffect(() => { fetchData(); }, [userId, viewMonth, viewYear]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -100,6 +108,7 @@ export default function FixedExpenses({ userId, categories, onTransactionChange,
   };
 
   const handleCheckbox = (fixed) => {
+    if (!isCurrentMonth) return;
     if (payments[fixed.id]) {
       unmarkPaid(fixed.id);
     } else {
@@ -116,10 +125,29 @@ export default function FixedExpenses({ userId, categories, onTransactionChange,
   const inputStyle = { padding: '0.6rem', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '0.9rem' };
   const editInputStyle = { padding: '0.4rem 0.6rem', border: '1px solid #6366f1', borderRadius: '6px', fontSize: '0.85rem', width: '100%' };
 
+  const monthLabel = `${t.months[viewMonth]} ${viewYear}`;
+
+  const statusBanner = isPastMonth ? (
+    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '0.75rem 1rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <span style={{ fontSize: '1rem' }}>📋</span>
+      <p style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 500 }}>Historical view — {monthLabel}</p>
+    </div>
+  ) : isFutureMonth ? (
+    <div style={{ background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: '10px', padding: '0.75rem 1rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <span style={{ fontSize: '1rem' }}>🔮</span>
+      <p style={{ fontSize: '0.85rem', color: '#6366f1', fontWeight: 500 }}>Future month — {monthLabel}. All items will reset when the month begins.</p>
+    </div>
+  ) : null;
+
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto' }}>
-      <h2 style={{ marginBottom: '0.5rem', color: '#1e293b' }}>{t.fixedExpenses}</h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+        <h2 style={{ color: '#1e293b' }}>{t.fixedExpenses}</h2>
+        <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#6366f1', background: '#eef2ff', padding: '0.3rem 0.75rem', borderRadius: '20px' }}>{monthLabel}</span>
+      </div>
       <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '1.5rem' }}>{t.fixedExpensesHint}</p>
+
+      {statusBanner}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
         {[
@@ -153,13 +181,20 @@ export default function FixedExpenses({ userId, categories, onTransactionChange,
               <div key={f.id} style={{
                 background: 'white', borderRadius: '10px',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-                borderLeft: `4px solid ${isPaid ? '#22c55e' : isPickingDate ? '#6366f1' : isEditing ? '#f59e0b' : '#e2e8f0'}`,
-                overflow: 'hidden'
+                borderLeft: `4px solid ${isPaid ? '#22c55e' : isPickingDate ? '#6366f1' : isEditing ? '#f59e0b' : isFutureMonth ? '#c7d2fe' : '#e2e8f0'}`,
+                overflow: 'hidden',
+                opacity: isFutureMonth ? 0.75 : 1
               }}>
                 {!isEditing && (
                   <div style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
-                      <input type="checkbox" checked={isPaid} onChange={() => handleCheckbox(f)} style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#22c55e' }} />
+                      <input
+                        type="checkbox"
+                        checked={isPaid}
+                        onChange={() => handleCheckbox(f)}
+                        disabled={!isCurrentMonth}
+                        style={{ width: '18px', height: '18px', cursor: isCurrentMonth ? 'pointer' : 'not-allowed', accentColor: '#22c55e', opacity: isCurrentMonth ? 1 : 0.4 }}
+                      />
                       <div>
                         <p style={{ fontWeight: 600, color: isPaid ? '#94a3b8' : '#1e293b', textDecoration: isPaid ? 'line-through' : 'none' }}>{f.name}</p>
                         <p style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{f.category}</p>
@@ -179,10 +214,12 @@ export default function FixedExpenses({ userId, categories, onTransactionChange,
                           {t.paid} {payments[f.id]?.date ? `· ${payments[f.id].date}` : ''}
                         </span>
                       )}
-                      {!isPaid && (
+                      {!isPaid && isCurrentMonth && (
                         <button onClick={() => startEdit(f)} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '0.3rem 0.6rem', fontSize: '0.8rem', cursor: 'pointer', color: '#6366f1', fontWeight: 500 }}>{t.edit}</button>
                       )}
-                      <button onClick={() => deleteFixed(f.id)} style={{ background: 'none', border: 'none', color: '#cbd5e1', fontSize: '1.1rem', cursor: 'pointer' }}>🗑️</button>
+                      {isCurrentMonth && (
+                        <button onClick={() => deleteFixed(f.id)} style={{ background: 'none', border: 'none', color: '#cbd5e1', fontSize: '1.1rem', cursor: 'pointer' }}>🗑️</button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -238,21 +275,24 @@ export default function FixedExpenses({ userId, categories, onTransactionChange,
         </div>
       )}
 
-      <div style={{ background: 'white', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
-        <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#1e293b', marginBottom: '1rem' }}>{t.addFixedExpense}</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
-          <input value={newName} onChange={e => setNewName(e.target.value)} placeholder={t.namePlaceholder} style={{ ...inputStyle, gridColumn: '1 / -1' }} />
-          <input value={newAmount} onChange={e => setNewAmount(e.target.value)} placeholder={t.amountPlaceholder} type="number" style={inputStyle} />
-          <select value={newCategory} onChange={e => setNewCategory(e.target.value)} style={inputStyle}>
-            <option value="">{t.categoryPlaceholder}</option>
-            {(categories?.expense || []).map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
+      {/* Add new — only show for current month */}
+      {isCurrentMonth && (
+        <div style={{ background: 'white', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+          <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#1e293b', marginBottom: '1rem' }}>{t.addFixedExpense}</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+            <input value={newName} onChange={e => setNewName(e.target.value)} placeholder={t.namePlaceholder} style={{ ...inputStyle, gridColumn: '1 / -1' }} />
+            <input value={newAmount} onChange={e => setNewAmount(e.target.value)} placeholder={t.amountPlaceholder} type="number" style={inputStyle} />
+            <select value={newCategory} onChange={e => setNewCategory(e.target.value)} style={inputStyle}>
+              <option value="">{t.categoryPlaceholder}</option>
+              {(categories?.expense || []).map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          {error && <p style={{ color: '#ef4444', fontSize: '0.85rem', marginBottom: '0.75rem' }}>{error}</p>}
+          <button onClick={addFixed} style={{ width: '100%', padding: '0.75rem', background: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600 }}>
+            + {t.addFixedExpense}
+          </button>
         </div>
-        {error && <p style={{ color: '#ef4444', fontSize: '0.85rem', marginBottom: '0.75rem' }}>{error}</p>}
-        <button onClick={addFixed} style={{ width: '100%', padding: '0.75rem', background: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600 }}>
-          + {t.addFixedExpense}
-        </button>
-      </div>
+      )}
     </div>
   );
 }
